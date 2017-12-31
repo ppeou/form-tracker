@@ -1,0 +1,65 @@
+<link rel="import" href="../../polymer/polymer-element.html">
+<link rel="import" href="../../polymer/lib/elements/dom-repeat.html">
+<dom-module id="demo-phones">
+  <template>
+    <style>
+      :host {
+        display: block;
+      }
+      .clickable {cursor: pointer;}
+    </style>
+    <p>
+      <b>Tracking: [[_getTrackingStatus(isEnable)]]</b>
+      <button on-click="_enableTracking">Enable</button>
+      <button on-click="_disableTracking">Disable</button>
+    </p>
+    <h4>Phone (<span>hasChanged: [[hasChanged]]</span>)</h4>
+    <p>
+      <select id="newPhoneType">
+        <option value="work">Work</option>
+        <option value="cell">Cell</option>
+        <option value="home">Home</option>
+      </select>
+      <input value="{{newPhoneNumber::input}}"/>
+      <button on-click="_addNumber">Add</button>
+    </p>
+    <template is="dom-repeat" items="[[phones]]">
+      <p>[[item.type]]<input value="{{item.phone::input}}"/>
+        <span class="clickable" on-click="updatePhone">[✔]</span>
+        <span class="clickable" on-click="removePhone">[X]</span>
+      </p>
+    </template>
+    <p>--------------------------</p>
+    <template is="dom-repeat" items="[[phones]]">
+      <p>[[item.type]]
+        [[item.phone]]</p>
+    </template>
+  </template>
+
+  <script>
+    class DemoPhones extends FormTrackerMixin(Polymer.Element)  {
+      static get is() { return 'demo-phones'; }
+      static get properties() {
+        return {
+          phones: {type: Array, value: [], trackChange: true},
+          newPhoneNumber: String,
+        };
+      }
+      _addNumber() {
+        console.log(this.$.newPhoneType.value, this.newPhoneNumber);
+        this.push('phones',{type: this.$.newPhoneType.value,
+          phone: this.newPhoneNumber});
+        this.newPhoneNumber = '';
+      }
+      updatePhone(e) {
+        const {type, phone} = e.model.item;
+        this.splice('phones', e.model.index, 1, {type,phone});
+      }
+      removePhone(e) {
+        this.splice('phones', e.model.index, 1);
+      }
+    }
+
+    window.customElements.define(DemoPhones.is, DemoPhones);
+  </script>
+</dom-module>

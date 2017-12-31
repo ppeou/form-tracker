@@ -1,0 +1,58 @@
+<link rel="import" href="../../polymer/polymer-element.html">
+<link rel="import" href="demo-user-info.html">
+<link rel="import" href="demo-payment.html">
+<link rel="import" href="demo-phones.html">
+
+<dom-module id="demo-profile">
+  <template>
+    <style>
+      :host {
+        display: block;
+      }
+    </style>
+    <p>
+      <b>Tracking: [[_getTrackingStatus(isEnable)]]</b>
+      <button on-click="_enableTracking">Enable</button>
+      <button on-click="_disableTracking">Disable</button>
+    </p>
+    <h2>Profile (<span>hasChanged: [[hasChanged]]</span>)</h2>
+    <hr/>
+    <demo-user-info></demo-user-info>
+    <hr/>
+    <demo-payment></demo-payment>
+    <hr/>
+    <demo-phones></demo-phones>
+    <hr/>
+    <button disabled$="[[_hasAnyChanged(hasChanged)]]">Save</button>
+  </template>
+
+  <script>
+    /**
+     * `demo-profile`
+     *
+     *
+     * @customElement
+     * @polymer
+     * @demo demo/index.html
+     */
+    class DemoProfile extends FormTrackerMixin(Polymer.Element) {
+      static get is() { return 'demo-profile'; }
+
+      static get properties() {
+        return {
+          prop1: {
+            type: String,
+            value: 'demo-profile'
+          },
+          hasChanged: {type: Boolean, value: false}
+        };
+      }
+
+      _hasAnyChanged(hasChanged) {
+        return hasChanged === true ? false : true;
+      }
+    }
+
+    window.customElements.define(DemoProfile.is, DemoProfile);
+  </script>
+</dom-module>

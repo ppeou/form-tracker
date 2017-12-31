@@ -1,0 +1,40 @@
+<link rel="import" href="../../polymer/polymer-element.html">
+
+<dom-module id="demo-payment">
+  <template>
+    <style>
+      :host {
+        display: block;
+      }
+    </style>
+    <p>
+      <b>Tracking: [[_getTrackingStatus(isEnable)]]</b>
+      <button on-click="_enableTracking">Enable</button>
+      <button on-click="_disableTracking">Disable</button>
+    </p>
+    <h4>Payment (<span>hasChanged: [[hasChanged]]</span>)</h4>
+    <table>
+      <tr>
+        <td>Account Holder</td>
+        <td><input value="{{paymentInfo.accountHolder::input}}"/></td>
+      </tr>
+      <tr>
+        <td>Credit Card</td>
+        <td><input value="{{paymentInfo.creditCard::input}}"/></td>
+      </tr>
+    </table>
+  </template>
+
+  <script>
+    class DemoPayment extends FormTrackerMixin(Polymer.Element)  {
+      static get is() { return 'demo-payment'; }
+      static get properties() {
+        return {
+          paymentInfo: {type: Object, value: {}, trackChange: true}
+        };
+      }
+    }
+
+    window.customElements.define(DemoPayment.is, DemoPayment);
+  </script>
+</dom-module>

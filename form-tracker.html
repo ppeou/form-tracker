@@ -1,0 +1,205 @@
+<link rel="import" href="../polymer/polymer-element.html">
+
+<script>
+  (() => {
+    const clone = (a) => {
+      if (Array.isArray(a)) {
+        return a.map(i => clone(i));
+      } else {
+        if (typeof a === 'object') {
+          if (a.constructor.name !== 'Date') {
+            return Object.assign({}, Object.keys(a).reduce((p, i) => {
+              p[i] = clone(a[i]);
+              return p;
+            }, {}));
+          } else {
+            return new Date(a.getTime());
+          }
+        } else {
+          return a;
+        }
+      }
+    };
+
+    const isArrayOrObject = (prop) => {
+      const propType = (prop.type || prop);
+      return propType === Object || propType === Array;
+    };
+
+    const bind = (element, properties) => {
+      var bindings = Object.keys(properties).filter((name) => {
+        const property = properties[name];
+        if (Object.prototype.hasOwnProperty.call(property, 'trackChange')) {
+          return true;
+        }
+        return false;
+      });
+      return bindings;
+    };
+
+    let trackers = {};
+    window.trackers = trackers;
+
+    window.FormTrackerMixin = (superClass) => class extends superClass {
+      constructor() {
+        super();
+        window.aaa = this;
+        this.key = Symbol();
+        trackers[this.key] = {
+          isEnable: false,
+          props: [],
+          paths: {},
+          children: new Map()
+        };
+        this.addEventListener('form-tracker-child-register', e => this._onChildElementRegistered(e));
+        this.addEventListener('form-tracker-changed', e => this._onChildElementChanged(e));
+      }
+
+      connectedCallback() {
+        const opt = trackers[this.key];
+        var properties = this.constructor.properties;
+        opt.props = bind(this, properties);
+        opt.props.forEach(i => {
+          this._createMethodObserver(`_observeFormTrackerMixin(${i}.*)`, true);
+        });
+        super.connectedCallback();
+        const event = new CustomEvent('form-tracker-child-register', {
+          bubbles: true,
+          composed: true,
+          detail: {elem: this}
+        });
+        this.dispatchEvent(event);
+      }
+
+      disconnectedCallback() {
+        //unbind(this);
+        super.disconnectedCallback();
+      }
+
+      static get properties() {
+        return {
+          isEnable: {type: Boolean, value: false}
+        };
+      }
+
+      _onChildElementRegistered(e) {
+        const {elem} = e.detail;
+        if (elem !== this) {
+          const {children} = trackers[this.key];
+          children.set(elem, undefined);
+        }
+      }
+
+      _onChildElementChanged(e) {
+        const {elem, hasChanged} = e.detail;
+        if (elem !== this) {
+          const {children} = trackers[this.key];
+          children.set(elem, hasChanged);
+          const anyChildHasChanged = Array.from(children.values()).some(i => i===true);
+          this.hasChanged = anyChildHasChanged;
+        }
+      }
+
+      _getOriginalData() {
+        return trackers[this.key].originalData;
+      }
+
+      _enableTracking() {
+        let opt = trackers[this.key];
+        this.isEnable = true;
+        this._toggleTrackingFlagForChildren(true);
+        opt.originalData = opt.props.reduce((p,i) => {
+          p[i] = clone(this[i]);
+          return p;
+        }, {});
+      }
+
+      _toggleTrackingFlagForChildren(flag) {
+        const {children} = trackers[this.key];
+        const elems = Array.from(children.keys());
+        if (flag) {
+          elems.forEach(c => c._enableTracking());
+        } else {
+          elems.forEach(c => c._disableTracking());
+        }
+      }
+
+      _disableTracking() {
+        this.isEnable = false;
+        this._toggleTrackingFlagForChildren(false);
+      }
+
+      _observeFormTrackerMixin(newValue) {
+        const {path, value, base} = newValue;
+        const opt = trackers[this.key];
+        if (this.isEnable) {
+          console.log(path, value);
+          const org = Polymer.Base.get(path, opt.originalData);
+
+          if(org !== value) {
+            opt.paths[path] = value;
+          } else {
+            delete opt.paths[path];
+          }
+
+          const hasChanged = Object.keys(opt.paths).length > 0;
+
+          if(this.hasChanged !== hasChanged) {
+            this.hasChanged = hasChanged;
+            this._invalidateProperties();
+
+            const event = new CustomEvent('form-tracker-changed', {
+              bubbles: true,
+              composed: true,
+              detail: {path, value, hasChanged, elem: this}
+            });
+            this.dispatchEvent(event);
+          }
+        }
+      }
+
+      _getTrackingStatus(isEnable){
+        return this.isEnable === true ? 'On' : 'Off';
+      }
+
+
+    };
+  })();
+</script>
+
+
+<dom-module id="form-tracker">
+  <template>
+    <style>
+      :host {
+        display: block;
+      }
+    </style>
+    <h2>Hello [[prop1]]!</h2>
+  </template>
+
+  <script>
+    /**
+     * `form-tracker`
+     *
+     *
+     * @customElement
+     * @polymer
+     * @demo demo/index.html
+     */
+    class FormTracker extends Polymer.Element {
+      static get is() { return 'form-tracker'; }
+
+      static get properties() {
+        return {
+          prop1: {
+            type: String,
+            value: 'form-tracker'
+          }
+        };
+      }
+    }
+
+    window.customElements.define(FormTracker.is, FormTracker);
+  </script>
+</dom-module>
