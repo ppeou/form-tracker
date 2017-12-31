@@ -11,7 +11,7 @@
       }
     </style>
     <p>
-      <b>Tracking: [[_getTrackingStatus(isEnable)]]</b>
+      <b>Tracking: [[_getTrackingStatus(isTrackingEnable)]]</b>
       <button on-click="_enableTracking">Enable</button>
       <button on-click="_disableTracking">Disable</button>
     </p>
@@ -37,6 +37,12 @@
      */
     class DemoProfile extends FormTrackerMixin(Polymer.Element) {
       static get is() { return 'demo-profile'; }
+
+      static get trackers() {
+        return {
+          trackingEnableProp: 'isTrackingEnable',
+        };
+      }
 
       static get properties() {
         return {

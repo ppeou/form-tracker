@@ -8,7 +8,8 @@
         display: block;
       }
     </style>
-    <h2>User View: (<span>hasChanged: [[hasChanged]]</span>)</h2>
+    <b>Tracking: [[_getTrackingStatus(isTrackingEnable)]]</b>
+    <h2>User View: (<span>hasChanged: [[isDirty]]</span>)</h2>
     <hr/>
     <div on-form-tracker-changed="_onChanged">
       <demo-profile></demo-profile>
@@ -18,6 +19,22 @@
   <script>
     class DemoUserView extends FormTrackerMixin(Polymer.Element) {
       static get is() { return 'demo-user-view'; }
+
+      static get trackers() {
+        return {
+          hasChangedProp: 'isDirty',
+          trackingEnableProp: 'isTrackingEnable',
+        };
+      }
+
+      static get observers() {
+        return ['_onHasChanged(isDirty)']
+      }
+
+      _onHasChanged(isDirty) {
+        console.log('_onHasChanged(v)', isDirty);
+      }
+
       _onChanged(e) {
         const {element} = e.detail;
         console.log(element._getModifiedPaths());

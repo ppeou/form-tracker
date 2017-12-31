@@ -72,6 +72,7 @@
 
       connectedCallback() {
         this.setupObserver();
+        this.setupMetaData();
         super.connectedCallback();
         const event = new CustomEvent(EVENTS.CHILD_ATTACHED, {
           bubbles: true,
@@ -85,6 +86,36 @@
         super.disconnectedCallback();
         this.removeEventListener(EVENTS.CHILD_ATTACHED, this._onChildElementRegistered);
         this.removeEventListener(EVENTS.CHILD_CHANGED, this._onChildElementChanged);
+      }
+
+      static get properties() {
+        return {
+          isEnable: {type: Boolean, value: false}
+        };
+      }
+
+      get hasChanged() {
+        return this[this.hasChangedProp];
+      }
+
+      set hasChanged(v) {
+        this[this.hasChangedProp] = v;
+      }
+
+      get isEnable() {
+        return this[this.trackingEnableProp];
+      }
+
+      set isEnable(v) {
+        this[this.trackingEnableProp] = v;
+      }
+
+      setupMetaData() {
+        const {trackers} = this.constructor;
+        if(trackers) {
+          this.hasChangedProp = trackers.hasChangedProp || '_hasChangedProp';
+          this.trackingEnableProp = trackers.trackingEnableProp || '_isEnableProp';
+        }
       }
 
       setupObserver() {
@@ -101,12 +132,6 @@
           }
           this._createMethodObserver(`${observerName}('${i}', ${i}.*, '${isEqualFn}')`, true);
         });
-      }
-
-      static get properties() {
-        return {
-          isEnable: {type: Boolean, value: false}
-        };
       }
 
       _onChildElementRegistered(e) {
@@ -163,13 +188,13 @@
         this._toggleTrackingFlagForChildren(false);
       }
 
-      _isEqual(a, b) {
+      _isEqual(a, b, path) {
         return a === b;
       }
 
-      _compareValue(isEqualFn, a, b) {
+      _compareValue(path, isEqualFn, a, b) {
         const fn = (isEqualFn && this[isEqualFn]) ? this[isEqualFn] : this._isEqual;
-        return fn(a,b);
+        return fn(a,b, path);
       }
 
       _updateModifiedPaths(path, value, hasChanged) {
@@ -205,7 +230,7 @@
           const opt = this.Option;
           if (this.isEnable) {
             const orgValue = Polymer.Base.get(path, opt.originalData);
-            const isEqual = this._compareValue(isEqualFn, orgValue, value);
+            const isEqual = this._compareValue(path, isEqualFn, orgValue, value);
             this._updateModifiedPaths(path, value, !isEqual);
             this._notifyParent({path, value});
           }
@@ -230,7 +255,7 @@
               const orgValue = Polymer.Base.get(prop, opt.originalData);
               const currentValue = Polymer.Base.get(prop, this);
 
-              const isEqual = this._compareValue(isEqualFn, orgValue, currentValue);
+              const isEqual = this._compareValue(prop, isEqualFn, orgValue, currentValue);
               this._updateModifiedPaths(path, currentValue, !isEqual);
               this._notifyParent({path, value: changedInfo});
             }
