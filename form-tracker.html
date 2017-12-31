@@ -212,7 +212,6 @@
 
         if (this.hasChanged !== hasChanged) {
           this.hasChanged = hasChanged;
-          this._invalidateProperties();
           Object.assign(eventDetail, {hasChanged, element: this} );
           const event = new CustomEvent(EVENTS.CHILD_CHANGED, {
             bubbles: true,
@@ -273,40 +272,3 @@
     };
   })();
 </script>
-
-
-<dom-module id="form-tracker">
-  <template>
-    <style>
-      :host {
-        display: block;
-      }
-    </style>
-    <h2>Hello [[prop1]]!</h2>
-  </template>
-
-  <script>
-    /**
-     * `form-tracker`
-     *
-     *
-     * @customElement
-     * @polymer
-     * @demo demo/index.html
-     */
-    class FormTracker extends Polymer.Element {
-      static get is() { return 'form-tracker'; }
-
-      static get properties() {
-        return {
-          prop1: {
-            type: String,
-            value: 'form-tracker'
-          }
-        };
-      }
-    }
-
-    window.customElements.define(FormTracker.is, FormTracker);
-  </script>
-</dom-module>
