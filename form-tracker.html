@@ -2,7 +2,6 @@
 
 <script>
   (() => {
-
     const objectType = {
       [Array]: 'array',
       [Object]: 'object',
@@ -30,14 +29,6 @@
       }
     };
 
-    const isArray = (prop) => {
-      return (prop.type || prop) === Array;
-    };
-    const isArrayOrObject = (prop) => {
-      const propType = (prop.type || prop);
-      return propType === Object || propType === Array;
-    };
-
     const checkType = (prop) => {
       const propType = (prop.type || prop);
       return objectType[propType];
@@ -57,40 +48,47 @@
     let formTrackers = {};
     window.formTrackers = formTrackers;
 
+    const EVENTS = {
+      CHILD_ATTACHED:'form-tracker-child-register',
+      CHILD_CHANGED:'form-tracker-changed',
+    };
+
     window.FormTrackerMixin = (superClass) => class extends superClass {
       constructor() {
         super();
-        window.aaa = this;
         this.key = Symbol();
         formTrackers[this.key] = {
-          isEnable: false,
           props: [],
-          paths: {},
+          paths: new Map(),
           children: new Map()
         };
-        this.addEventListener('form-tracker-child-register', e => this._onChildElementRegistered(e));
-        this.addEventListener('form-tracker-changed', e => this._onChildElementChanged(e));
+        this.addEventListener(EVENTS.CHILD_ATTACHED, this._onChildElementRegistered);
+      }
+
+      ready() {
+        super.ready();
+        this.addEventListener(EVENTS.CHILD_CHANGED, this._onChildElementChanged);
       }
 
       connectedCallback() {
         this.setupObserver();
         super.connectedCallback();
-        const event = new CustomEvent('form-tracker-child-register', {
+        const event = new CustomEvent(EVENTS.CHILD_ATTACHED, {
           bubbles: true,
           composed: true,
-          detail: {elem: this}
+          detail: {element: this}
         });
         this.dispatchEvent(event);
       }
 
       disconnectedCallback() {
-        //unbind(this);
         super.disconnectedCallback();
+        this.removeEventListener(EVENTS.CHILD_ATTACHED, this._onChildElementRegistered);
+        this.removeEventListener(EVENTS.CHILD_CHANGED, this._onChildElementChanged);
       }
 
       setupObserver() {
-        const opt = formTrackers[this.key];
-        //const {properties, trackers} = this.constructor;
+        const opt = this.Option;;
         const {properties} = this.constructor;
         opt.props = bind(this, properties);
 
@@ -103,19 +101,6 @@
           }
           this._createMethodObserver(`${observerName}('${i}', ${i}.*, '${isEqualFn}')`, true);
         });
-
-        /*if (trackers) {
-          Object.keys(trackers).forEach(i => {
-            if (opt.props.indexOf(i) < 0) {opt.props.push(i);}
-            const {observePath, isEqual} = trackers[i];
-            const propType = checkType(properties[i]);
-            let observerName = '_observeFormTrackerDefaultMixin';
-            if (propType === 'array') {
-              observerName = '_observeFormTrackerArrayMixin';
-            }
-            this._createMethodObserver(`${observerName}('${i}', ${observePath}, '${isEqual}')`, true);
-          });
-        }*/
       }
 
       static get properties() {
@@ -125,29 +110,36 @@
       }
 
       _onChildElementRegistered(e) {
-        const {elem} = e.detail;
-        if (elem !== this) {
-          const {children} = formTrackers[this.key];
-          children.set(elem, undefined);
+        const {element} = e.detail;
+        if (element !== this) {
+          const {children} = this.Option;
+          children.set(element, undefined);
         }
       }
 
       _onChildElementChanged(e) {
-        const {elem, hasChanged} = e.detail;
-        if (elem !== this) {
-          const {children} = formTrackers[this.key];
-          children.set(elem, hasChanged);
-          const anyChildHasChanged = Array.from(children.values()).some(i => i === true);
-          this.hasChanged = anyChildHasChanged;
+        const {element, hasChanged} = e.detail;
+        if (element !== this) {
+          const value = null;
+          this._updateModifiedPaths(element, value, hasChanged);
+          this._notifyParent({path:element, value});
+          e.stopPropagation();
         }
       }
 
+      _getModifiedPaths() {
+        const {paths} = this.Option;
+        return Array.from(paths.keys()).reduce((p, i) => {
+          p.push({path: i, value: paths.get(i)});
+          return p;},[]);
+      }
+
       _getOriginalData() {
-        return formTrackers[this.key].originalData;
+        return this.Option.originalData;
       }
 
       _enableTracking() {
-        let opt = formTrackers[this.key];
+        let opt = this.Option;;
         this.isEnable = true;
         this._toggleTrackingFlagForChildren(true);
         opt.originalData = opt.props.reduce((p, i) => {
@@ -157,12 +149,12 @@
       }
 
       _toggleTrackingFlagForChildren(flag) {
-        const {children} = formTrackers[this.key];
-        const elems = Array.from(children.keys());
+        const {children} = this.Option;
+        const elements = Array.from(children.keys());
         if (flag) {
-          elems.forEach(c => c._enableTracking());
+          elements.forEach(e => e._enableTracking());
         } else {
-          elems.forEach(c => c._disableTracking());
+          elements.forEach(e => e._disableTracking());
         }
       }
 
@@ -180,113 +172,79 @@
         return fn(a,b);
       }
 
+      _updateModifiedPaths(path, value, hasChanged) {
+        const opt = this.Option;
+        if (hasChanged) {
+          opt.paths.set(path,value);
+        } else {
+          opt.paths.delete(path);
+        }
+      }
+
+      _notifyParent(eventDetail) {
+        const {paths} = this.Option;
+        const hasChanged = paths.size > 0;
+
+        if (this.hasChanged !== hasChanged) {
+          this.hasChanged = hasChanged;
+          this._invalidateProperties();
+          Object.assign(eventDetail, {hasChanged, element: this} );
+          const event = new CustomEvent(EVENTS.CHILD_CHANGED, {
+            bubbles: true,
+            composed: true,
+            cancelable: true,
+            detail: eventDetail
+          });
+          this.dispatchEvent(event);
+        }
+      }
+
       _observeFormTrackerDefaultMixin(prop, newValue, isEqualFn) {
         if (newValue) {
           const {path, value, base} = newValue;
-          const opt = formTrackers[this.key];
+          const opt = this.Option;
           if (this.isEnable) {
-            console.log(path, value);
-
             const orgValue = Polymer.Base.get(path, opt.originalData);
             const isEqual = this._compareValue(isEqualFn, orgValue, value);
-
-            if (!isEqual) {
-              opt.paths[path] = value;
-            } else {
-              delete opt.paths[path];
-            }
-
-            const hasChanged = Object.keys(opt.paths).length > 0;
-
-            if (this.hasChanged !== hasChanged) {
-              this.hasChanged = hasChanged;
-              this._invalidateProperties();
-
-              const event = new CustomEvent('form-tracker-changed', {
-                bubbles: true,
-                composed: true,
-                detail: {path, value, hasChanged, elem: this}
-              });
-              this.dispatchEvent(event);
-            }
+            this._updateModifiedPaths(path, value, !isEqual);
+            this._notifyParent({path, value});
           }
         }
       }
 
       _observeFormTrackerArrayMixin(prop, newValue, isEqualFn) {
-        /*var {path, value, base} = newValue;
-         console.log('---------------');
-         console.log(path, value.indexSplices ? value.indexSplices[0] : '---', base);
-         return;*/
         if (newValue) {
           if (this.isEnable) {
             const {path: actionPath, value, base} = newValue;
             let temp =  actionPath.split('.');
-            const arrayChangedMethod = temp.pop();
+            const arrayChangedPath = temp.pop();
             const path = temp.join('.');
             let changedInfo = {};
-            if (arrayChangedMethod !== 'length') {
-              if (arrayChangedMethod === 'splices') {
+            if (arrayChangedPath !== 'length') {
+              if (arrayChangedPath === 'splices') {
                 changedInfo = value.indexSplices[0];
               } else {
-                changedInfo = {index: arrayChangedMethod, updated: value};
+                changedInfo = {index: arrayChangedPath, updated: value};
               }
-              const opt = formTrackers[this.key];
+              const opt = this.Option;
               const orgValue = Polymer.Base.get(prop, opt.originalData);
               const currentValue = Polymer.Base.get(prop, this);
 
               const isEqual = this._compareValue(isEqualFn, orgValue, currentValue);
-
-              if (!isEqual) {
-                opt.paths[path] = value;
-              } else {
-                delete opt.paths[path];
-              }
-
-
-              /*if (isEqualFn && this[isEqualFn]) {
-                const isEqual = this[isEqualFn](orgValue, currentValue);
-                if (!isEqual) {
-                  opt.paths[prop] = changedInfo;
-                } else {
-                  delete opt.paths[prop];
-                }
-              } else {
-                if (orgValue !== currentValue) {
-                  opt.paths[prop] = changedInfo;
-                } else {
-                  delete opt.paths[prop];
-                }
-              }*/
-
-              const hasChanged = Object.keys(opt.paths).length > 0;
-
-              if (this.hasChanged !== hasChanged) {
-                this.hasChanged = hasChanged;
-                this._invalidateProperties();
-
-                const event = new CustomEvent('form-tracker-changed', {
-                  bubbles: true,
-                  composed: true,
-                  detail: {
-                    path,
-                    hasChanged,
-                    value: changedInfo,
-                    elem: this,
-                  }
-                });
-                this.dispatchEvent(event);
-              }
+              this._updateModifiedPaths(path, currentValue, !isEqual);
+              this._notifyParent({path, value: changedInfo});
             }
           }
         }
       }
 
+      get Option(){
+        return formTrackers[this.key];
+      }
+
       _getTrackingStatus(isEnable) {
         return this.isEnable === true ? 'On' : 'Off';
       }
-
-
     };
   })();
 </script>

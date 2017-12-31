@@ -1,0 +1,29 @@
+<link rel="import" href="../../polymer/polymer-element.html">
+<link rel="import" href="demo-profile.html">
+
+<dom-module id="demo-user-view">
+  <template>
+    <style>
+      :host {
+        display: block;
+      }
+    </style>
+    <h2>User View: (<span>hasChanged: [[hasChanged]]</span>)</h2>
+    <hr/>
+    <div on-form-tracker-changed="_onChanged">
+      <demo-profile></demo-profile>
+    </div>
+  </template>
+
+  <script>
+    class DemoUserView extends FormTrackerMixin(Polymer.Element) {
+      static get is() { return 'demo-user-view'; }
+      _onChanged(e) {
+        const {element} = e.detail;
+        console.log(element._getModifiedPaths());
+      }
+    }
+
+    window.customElements.define(DemoUserView.is, DemoUserView);
+  </script>
+</dom-module>
