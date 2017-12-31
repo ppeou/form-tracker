@@ -114,7 +114,13 @@
         const {trackers} = this.constructor;
         if(trackers) {
           this.hasChangedProp = trackers.hasChangedProp || '_hasChangedProp';
+          if(this[this.hasChangedProp] === undefined) {
+            this.hasChanged = false;
+          }
           this.trackingEnableProp = trackers.trackingEnableProp || '_isEnableProp';
+          if(this[this.trackingEnableProp] === undefined) {
+            this.isEnable = false;
+          }
         }
       }
 
@@ -139,6 +145,7 @@
         if (element !== this) {
           const {children} = this.Option;
           children.set(element, undefined);
+          e.stopPropagation();
         }
       }
 
