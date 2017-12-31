@@ -1,5 +1,6 @@
 <link rel="import" href="../../polymer/polymer-element.html">
 <link rel="import" href="../../polymer/lib/elements/dom-repeat.html">
+<script src="../../node_modules/object-hash/dist/object_hash.js"></script>
 <dom-module id="demo-phones">
   <template>
     <style>
@@ -41,22 +42,72 @@
       static get is() { return 'demo-phones'; }
       static get properties() {
         return {
-          phones: {type: Array, value: [], trackChange: true},
+          phones: {
+            type: Array,
+            value: [],
+            trackChange: true,
+            isEqualFn: '_compareMyArray'
+          },
           newPhoneNumber: String,
         };
       }
       _addNumber() {
-        console.log(this.$.newPhoneType.value, this.newPhoneNumber);
-        this.push('phones',{type: this.$.newPhoneType.value,
-          phone: this.newPhoneNumber});
-        this.newPhoneNumber = '';
+        if(this.newPhoneNumber) {
+          this.push('phones', {
+            type: this.$.newPhoneType.value,
+            phone: this.newPhoneNumber
+          });
+          this.newPhoneNumber = '';
+        }
+        /*setTimeout(()=> {
+          console.clear();
+          console.log('push');
+          this.push('phones', {type: 'a',phone: 'aaa'}, {type: 'a1',phone: 'aaa1'});
+          this.push('phones', {type: 'b',phone: 'bbb'});
+          this.push('phones', {type: 'c',phone: 'ccc'});
+          this.push('phones', {type: 'd',phone: 'ddd'});
+          }, 1);
+
+        setTimeout(()=> {
+          console.log('pop');
+          this.pop('phones');
+        }, 10);
+
+        setTimeout(()=> {
+          console.log('unshift');
+          this.unshift('phones',{type: 'e',phone: 'eee'});
+          this.unshift('phones',
+            {type: 'f',phone: 'fff'},{type: 'g',phone: 'ggg'});
+        }, 20);
+
+        setTimeout(()=> {
+          console.log('shift');
+          this.shift('phones');
+        }, 30);
+
+        setTimeout(()=> {
+          console.log('splice');
+          this.splice('phones', 1, 1);
+          this.splice('phones', 1, 0, {type: 'h',phone: 'hhh'}, {type: 'i',phone: 'iii'});
+        }, 40);
+
+        setTimeout(()=> {
+          console.log('set');
+          this.set('phones.1', {type: 'ah',phone: 'ahhh'});
+        }, 40);*/
       }
       updatePhone(e) {
+        const idx = e.model.index;
         const {type, phone} = e.model.item;
-        this.splice('phones', e.model.index, 1, {type,phone});
+        //this.splice('phones', e.model.index, 1, {type,phone});
+        this.set(`phones.${idx}`, {type,phone});
       }
       removePhone(e) {
         this.splice('phones', e.model.index, 1);
+      }
+      _compareMyArray(a, b) {
+        console.log('compare : ', a, b);
+        return objectHash(a) === objectHash(b);
       }
     }
 
