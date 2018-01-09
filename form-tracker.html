@@ -112,6 +112,7 @@
 
       setupMetaData() {
         const {trackers} = this.constructor;
+        this.hasChangedProp = '_hasChangedProp';
         if(trackers) {
           this.hasChangedProp = trackers.hasChangedProp || '_hasChangedProp';
           if(this[this.hasChangedProp] === undefined) {
@@ -171,13 +172,21 @@
       }
 
       _enableTracking() {
-        let opt = this.Option;;
+        let opt = this.Option;
         this.isEnable = true;
         this._toggleTrackingFlagForChildren(true);
         opt.originalData = opt.props.reduce((p, i) => {
           p[i] = clone(this[i]);
           return p;
         }, {});
+      }
+      _disableTracking() {
+        let opt = this.Option;
+        opt.originalData = undefined;
+        opt.paths = new Map();
+        this.isEnable = false;
+        this.hasChanged = false;
+        this._toggleTrackingFlagForChildren(false);
       }
 
       _toggleTrackingFlagForChildren(flag) {
@@ -188,11 +197,6 @@
         } else {
           elements.forEach(e => e._disableTracking());
         }
-      }
-
-      _disableTracking() {
-        this.isEnable = false;
-        this._toggleTrackingFlagForChildren(false);
       }
 
       _isEqual(a, b, path) {
@@ -275,6 +279,19 @@
 
       _getTrackingStatus(isEnable) {
         return this.isEnable === true ? 'On' : 'Off';
+      }
+
+      updateModelWithElement(elem, model, value) {
+        const opt = this.Option;
+        this.set(model, value);
+        setTimeout(()=> {
+          const attrName = this.hasChangedProp;
+          if(opt.paths.has(model)) {
+            elem.setAttribute(attrName,'');
+          } else {
+            elem.removeAttribute(attrName);
+          }
+        },1);
       }
     };
   })();

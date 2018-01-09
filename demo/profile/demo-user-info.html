@@ -6,6 +6,9 @@
       :host {
         display: block;
       }
+      [_haschangedprop] {
+        border: solid 1px red;
+      }
     </style>
     <p>
       <b>Tracking Flag: [[_getTrackingStatus(isEnable)]]</b>
@@ -16,15 +19,21 @@
     <table>
       <tr>
         <td>First Name</td>
-        <td><input value="{{value.firstName::input}}"/></td>
+        <td><input type="text" value="[[value.firstName]]"
+                   data-model="value.firstName"
+                   on-blur="_onBlur"/></td>
       </tr>
       <tr>
         <td>Last Name</td>
-        <td><input value="{{value.lastName::input}}"/></td>
+        <td><input type="text" value="[[value.lastName]]"
+                   data-model="value.lastName"
+                   on-blur="_onBlur"></td>
       </tr>
       <tr>
         <td>Age 1</td>
-        <td><input type="number" value="{{age::input}}"/></td>
+        <td><input type="text" value="[[age]]"
+                   data-model="age"
+                   on-blur="_onBlur"/></td>
       </tr>
     </table>
   </template>
@@ -40,6 +49,11 @@
       }
       connectedCallback() {
         super.connectedCallback();
+      }
+      _onBlur(e) {
+        const {currentTarget: elem} = e;
+        const {value, dataset:{model}} = elem;
+        super.updateModelWithElement(elem, model, value);
       }
     }
 

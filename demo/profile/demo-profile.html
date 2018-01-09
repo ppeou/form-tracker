@@ -17,11 +17,12 @@
     </p>
     <h2>Profile (<span>hasChanged: [[hasChanged]]</span>)</h2>
     <hr/>
-    <demo-user-info></demo-user-info>
+    <demo-user-info value="[[profileData.userInfo.name]]"
+                    age="[[profileData.userInfo.age]]"></demo-user-info>
     <hr/>
-    <demo-payment></demo-payment>
+    <demo-payment payment-info="[[profileData.paymentInfo]]"></demo-payment>
     <hr/>
-    <demo-phones></demo-phones>
+    <demo-phones phones="[[profileData.phones]]"></demo-phones>
     <hr/>
     <button disabled$="[[_hasAnyChanged(hasChanged)]]">Save</button>
   </template>
@@ -46,9 +47,10 @@
 
       static get properties() {
         return {
+          //profileData: Object,
           prop1: {
             type: String,
-            value: 'demo-profile'
+            value: 'demo-profile',
           }
         };
       }

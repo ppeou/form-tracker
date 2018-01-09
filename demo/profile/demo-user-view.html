@@ -10,15 +10,19 @@
     </style>
     <b>Tracking Flag: [[_getTrackingStatus(isTrackingEnable)]]</b>
     <h2>User View: (<span>hasChanged: [[isDirty]]</span>)</h2>
+    <button on-click="_setData">Set Data</button>
     <hr/>
     <div on-form-tracker-changed="_onChanged">
-      <demo-profile></demo-profile>
+      <demo-profile profile-data="[[_data]]"></demo-profile>
     </div>
   </template>
 
   <script>
     class DemoUserView extends FormTrackerMixin(Polymer.Element) {
       static get is() { return 'demo-user-view'; }
+      static get properties() { return {
+        _data: Object
+      }; }
 
       static get trackers() {
         return {
@@ -38,6 +42,25 @@
       _onChanged(e) {
         const {element} = e.detail;
         console.log(element._getModifiedPaths());
+      }
+      _setData() {
+        this._disableTracking();
+        this._data = {
+          userInfo: {
+            name: {firstName: 'David', lastName: 'Jonhson'},
+            age: '13'
+          },
+          paymentInfo: {
+            accountHolder:'My full name',
+            creditCard: '1234-1234-0000-9999'
+          },
+          phones: [
+            {type:'work', phone: '11'},
+            {type:'cell', phone: '22'},
+            {type:'home', phone: '33'},
+          ]
+        };
+        this._enableTracking();
       }
     }
 
