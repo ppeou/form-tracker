@@ -10,16 +10,15 @@
 <script>
 
   ((_w) => {
-
     const disAllowCrossTypeList = ['array', 'object'];
-    const allowCrossTypeList = ['string', 'number','null', 'undefined'];
+    const allowCrossTypeList = ['string', 'number', 'null', 'undefined'];
 
     const getType = (a) => {
       return a === null ? 'null' : (Array.isArray(a) ? 'array' : typeof a);
     };
 
     const getObjectKeys = (a) => {
-      return [...(Object.getOwnPropertyNames(a).sort()), ...(Object.getOwnPropertySymbols(a))] ;
+      return [...(Object.getOwnPropertyNames(a).sort()), ...(Object.getOwnPropertySymbols(a))];
     };
 
     const looseCompare = (a, b) => {
@@ -34,9 +33,6 @@
     const strictCompare = (a, b) => a === b;
 
     const compareArrayByIndex = (a, b, fn) => {
-      //If either a or b is not an array
-      //if (Array.isArray(a) !== Array.isArray(b)) {return false;}
-
       //If lenght of these 2 arrays are different
       if (a.length !== b.length) {return false;}
 
@@ -48,12 +44,23 @@
       });
     };
 
+    const compareObjectKeyArray = (a, b) => {
+      //If lenght of these 2 arrays are different
+      if (a.length !== b.length) {return false;}
+
+      //Loop thru array item and call compare function
+      return !a.some((i) => {
+        if (0 > b.indexOf(i)) {
+          return true;
+        }
+      });
+    };
+
     const compareObject = (a, b, fn) => {
       const [keyA, keyB] = [getObjectKeys(a), getObjectKeys(b)];
       //Compare object's properties
-      if (compareArrayByIndex(keyA, keyB, strictCompare)) {
+      if (compareObjectKeyArray(keyA, keyB)) {
         return !keyA.some(i => {
-          //console.log(i, a[i], b[i]);
           if (!compare(a[i], b[i], fn)) {
             return true;
           }
@@ -68,13 +75,13 @@
       if (a === b) {return true;}
 
       //If one is an object and another one is not
-      const [typeA, typeB] = [getType(a),getType(b)];
+      const [typeA, typeB] = [getType(a), getType(b)];
 
       const aInDisAllowCrossTypeList = disAllowCrossTypeList.includes(typeA);
       const bInDisAllowCrossTypeList = disAllowCrossTypeList.includes(typeB);
 
-      if(aInDisAllowCrossTypeList || bInDisAllowCrossTypeList) {
-        if(typeA !== typeB) {return false;}
+      if (aInDisAllowCrossTypeList || bInDisAllowCrossTypeList) {
+        if (typeA !== typeB) {return false;}
       }
 
       //if a is an array,
@@ -123,9 +130,8 @@
   }
 
 
-
   /*console.log(looseCompare(undefined, null));
-  console.log(strictCompare(undefined, null));*/
+   console.log(strictCompare(undefined, null));*/
 
   const StrictScenarios = [
     {a: '', b: null, exp: false},
@@ -135,8 +141,8 @@
     {a: null, b: undefined, exp: false},
     {a: null, b: '', exp: false},
     {a: [1, ''], b: [1, null], exp: false},
-    {a: {a: 2, b:''}, b: {a: 2, b: null}, exp: false},
-    {a: {a: 2, b:''}, b: {a: 2, b: undefined}, exp: false},
+    {a: {a: 2, b: ''}, b: {a: 2, b: null}, exp: false},
+    {a: {a: 2, b: ''}, b: {a: 2, b: undefined}, exp: false},
     {a: undefined, b: undefined, exp: true},
     {a: null, b: null, exp: true},
     {a: '', b: '', exp: true},
@@ -159,8 +165,8 @@
     {a: undefined, b: null, exp: true},
     {a: null, b: '', exp: true},
     {a: [1, ''], b: [1, null], exp: true},
-    {a: {a: 2, b:''}, b: {a: 2, b: null}, exp: true},
-    {a: {a: 2, b:''}, b: {a: 2, b: undefined}, exp: true},
+    {a: {a: 2, b: ''}, b: {a: 2, b: null}, exp: true},
+    {a: {a: 2, b: ''}, b: {a: 2, b: undefined}, exp: true},
     {a: '', b: Symbol(), exp: false},
     {a: 1, b: Symbol(), exp: false},
     {a: undefined, b: '1', exp: false},
@@ -279,38 +285,39 @@
 
   test(looseCompare, 1, oProfile, uProfile, true);
 
-   uProfile.profile.fname = 'ccc';
-   test(looseCompare, 2, oProfile, uProfile, false);
+  uProfile.profile.fname = 'ccc';
+  test(looseCompare, 2, oProfile, uProfile, false);
 
-    delete uProfile.profile.fname;
-   test(looseCompare, 3, oProfile, uProfile, false);
+  delete uProfile.profile.fname;
+  test(looseCompare, 3, oProfile, uProfile, false);
 
-   //uProfile.profile.fname = oProfile.profile.fname;
+  //uProfile.profile.fname = oProfile.profile.fname;
   uProfile.profile.fname = 'aaa';
-   test(looseCompare, 4, oProfile, uProfile, true);
+  test(looseCompare, 4, oProfile, uProfile, true);
 
-   uProfile.payment.push({});
-   test(looseCompare, 5, oProfile, uProfile, false);
+  uProfile.payment.push({});
+  test(looseCompare, 5, oProfile, uProfile, false);
 
   uProfile.payment.pop();
   test(looseCompare, 6, oProfile, uProfile, true);
 
-   oProfile.profile.fname = undefined;
-   uProfile.profile.fname = '';
-   test(looseCompare, '7 (loose)', oProfile, uProfile, true);
+  oProfile.profile.fname = undefined;
+  uProfile.profile.fname = '';
+  test(looseCompare, '7 (loose)', oProfile, uProfile, true);
   test(strictCompare, '7 (strict)', oProfile, uProfile, false);
 
 
-  const [sa,sb,sc,sd] = [Symbol(),Symbol(),Symbol(),Symbol()];
+  const [sa, sb, sc, sd] = [Symbol(), Symbol(), Symbol(), Symbol()];
   const complextObjectScenarios = [
     {a: {[sa]: sb}, b: {[sa]: sb}, exp: true},
     {a: {[sa]: sb, [sc]: sd}, b: {[sa]: sb, [sc]: sc}, exp: false},
-    /*a: {[sa]: sb}, b: {[sb]: sb}, exp: false},
-    {a: {[sa]: sb, [sc]: [sd]}, b: {[sa]: sb, [sc]: [sc]}, exp: true},*/
+    {a: {[sa]: sb}, b: {[sb]: sb}, exp: false},
+    {a: {[sa]: sb, [sc]: [sd]}, b: {[sa]: sb, [sc]: [sc]}, exp: false},
+    {a: {[sa]: sb, [sc]: [sd]}, b: {[sa]: sb, [sc]: [sd]}, exp: true},
   ];
 
   console.log('*-----------------*');
-  console.log('Strict Equal Complex Object Scenarios:');
+  console.log('Strict Equal Symbole Object Scenarios:');
   console.log('---------------------');
   complextObjectScenarios.forEach((i, idx) => {
     const {a, b, exp} = i;
