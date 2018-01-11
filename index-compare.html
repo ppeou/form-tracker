@@ -136,6 +136,11 @@
   const StrictScenarios = [
     {a: '', b: null, exp: false},
     {a: '', b: undefined, exp: false},
+    {a: 0, b: undefined, exp: false},
+    {a: 0, b: null, exp: false},
+    {a: 0, b: '', exp: false},
+    {a: 0, b: 0.0, exp: true},
+    {a: 0, b: 0.1, exp: false},
     {a: undefined, b: '', exp: false},
     {a: undefined, b: null, exp: false},
     {a: null, b: undefined, exp: false},
@@ -159,6 +164,9 @@
   const LooseScenarios = [
     {a: '', b: null, exp: true},
     {a: '', b: undefined, exp: true},
+    {a: 0, b: undefined, exp: false},
+    {a: 0, b: null, exp: false},
+    {a: 0, b: '', exp: false},
     {a: null, b: null, exp: true},
     {a: undefined, b: undefined, exp: true},
     {a: undefined, b: '', exp: true},
@@ -224,7 +232,7 @@
   });
 
   console.log('---------------------');
-  console.log('UnEqual Scenarios:');
+  console.log('Strict UnEqual Scenarios:');
   console.log('---------------------');
   UnEqualScenarios.forEach((i, idx) => {
     const {a, b} = i;
@@ -291,8 +299,7 @@
   delete uProfile.profile.fname;
   test(looseCompare, 3, oProfile, uProfile, false);
 
-  //uProfile.profile.fname = oProfile.profile.fname;
-  uProfile.profile.fname = 'aaa';
+  uProfile.profile.fname = oProfile.profile.fname;
   test(looseCompare, 4, oProfile, uProfile, true);
 
   uProfile.payment.push({});
@@ -322,6 +329,14 @@
   complextObjectScenarios.forEach((i, idx) => {
     const {a, b, exp} = i;
     test(strictCompare, idx + 1, a, b, exp);
+  });
+
+  console.log('*-----------------*');
+  console.log('Loose Equal Symbole Object Scenarios:');
+  console.log('---------------------');
+  complextObjectScenarios.forEach((i, idx) => {
+    const {a, b, exp} = i;
+    test(looseCompare, idx + 1, a, b, exp);
   });
 
 
