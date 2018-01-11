@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+</head>
+<body>
+
+</body>
+<script>
+
+  ((_w) => {
+
+    const disAllowCrossTypeList = ['array', 'object'];
+    const allowCrossTypeList = ['string', 'number','null', 'undefined'];
+
+    const getType = (a) => {
+      return a === null ? 'null' : (Array.isArray(a) ? 'array' : typeof a);
+    };
+
+    const getObjectKeys = (a) => {
+      return [...(Object.getOwnPropertyNames(a).sort()), ...(Object.getOwnPropertySymbols(a))] ;
+    };
+
+    const looseCompare = (a, b) => {
+      if ((a !== 0) && (b !== 0)) {
+        if (!a === !b && true === !a) {
+          //console.log(a, b, !a, !b);
+          return true;
+        }
+      }
+      return (a === b);
+    };
+    const strictCompare = (a, b) => a === b;
+
+    const compareArrayByIndex = (a, b, fn) => {
+      //If either a or b is not an array
+      //if (Array.isArray(a) !== Array.isArray(b)) {return false;}
+
+      //If lenght of these 2 arrays are different
+      if (a.length !== b.length) {return false;}
+
+      //Loop thru array item and call compare function
+      return !a.some((i, idx) => {
+        if (!compare(i, b[idx], fn)) {
+          return true;
+        }
+      });
+    };
+
+    const compareObject = (a, b, fn) => {
+      const [keyA, keyB] = [getObjectKeys(a), getObjectKeys(b)];
+      //Compare object's properties
+      if (compareArrayByIndex(keyA, keyB, strictCompare)) {
+        return !keyA.some(i => {
+          //console.log(i, a[i], b[i]);
+          if (!compare(a[i], b[i], fn)) {
+            return true;
+          }
+        });
+      } else {
+        return false;
+      }
+    };
+
+    const compare = (a, b, fn) => {
+      //if a & b point to the same object, return true;
+      if (a === b) {return true;}
+
+      //If one is an object and another one is not
+      const [typeA, typeB] = [getType(a),getType(b)];
+
+      const aInDisAllowCrossTypeList = disAllowCrossTypeList.includes(typeA);
+      const bInDisAllowCrossTypeList = disAllowCrossTypeList.includes(typeB);
+
+      if(aInDisAllowCrossTypeList || bInDisAllowCrossTypeList) {
+        if(typeA !== typeB) {return false;}
+      }
+
+      //if a is an array,
+      if (typeA === 'array') {
+        return compareArrayByIndex(a, b, fn);
+      } else {
+        if (typeA === 'object') {
+          if (a.constructor.name !== 'Date') {
+            return compareObject(a, b, fn);
+          }
+          else {
+            return a.getTime() === b.getTime();
+          }
+        } else {
+          //console.log('-->', a, b);
+          return fn(a, b);
+        }
+      }
+      return true;
+    };
+
+
+    class SmartCompare {
+      constructor(isLooseCompare = false) {
+        this.compFn = isLooseCompare ? looseCompare : strictCompare;
+        this.compare = this.compare.bind(this);
+      }
+
+      compare(a, b) {
+        return compare(a, b, this.compFn);
+      }
+    }
+
+    _w.SmartCompare = SmartCompare;
+  })(window);
+  ((_w) => {})(window);
+  var strictCompare = (new SmartCompare()).compare;
+  var looseCompare = (new SmartCompare(true)).compare;
+
+
+  const test = (compareFn, scenario, a, b, expected) => {
+    const actual = compareFn(a, b);
+    const isExpected = actual === expected ? '✅' : '❌';
+    console.log(isExpected, `Scenario: ${scenario}`, actual, a === '' ? '""' : a, b === '' ? '""' : b);
+    return isExpected;
+  }
+
+
+
+  /*console.log(looseCompare(undefined, null));
+  console.log(strictCompare(undefined, null));*/
+
+  const StrictScenarios = [
+    {a: '', b: null, exp: false},
+    {a: '', b: undefined, exp: false},
+    {a: undefined, b: '', exp: false},
+    {a: undefined, b: null, exp: false},
+    {a: null, b: undefined, exp: false},
+    {a: null, b: '', exp: false},
+    {a: [1, ''], b: [1, null], exp: false},
+    {a: {a: 2, b:''}, b: {a: 2, b: null}, exp: false},
+    {a: {a: 2, b:''}, b: {a: 2, b: undefined}, exp: false},
+    {a: undefined, b: undefined, exp: true},
+    {a: null, b: null, exp: true},
+    {a: '', b: '', exp: true},
+  ];
+
+  console.log('---------------------');
+  console.log('Strict Comparison Scenarios:');
+  console.log('---------------------');
+  StrictScenarios.forEach((i, idx) => {
+    const {a, b, exp} = i;
+    test(strictCompare, idx + 1, a, b, exp);
+  });
+
+  const LooseScenarios = [
+    {a: '', b: null, exp: true},
+    {a: '', b: undefined, exp: true},
+    {a: null, b: null, exp: true},
+    {a: undefined, b: undefined, exp: true},
+    {a: undefined, b: '', exp: true},
+    {a: undefined, b: null, exp: true},
+    {a: null, b: '', exp: true},
+    {a: [1, ''], b: [1, null], exp: true},
+    {a: {a: 2, b:''}, b: {a: 2, b: null}, exp: true},
+    {a: {a: 2, b:''}, b: {a: 2, b: undefined}, exp: true},
+    {a: '', b: Symbol(), exp: false},
+    {a: 1, b: Symbol(), exp: false},
+    {a: undefined, b: '1', exp: false},
+    {a: null, b: 2, exp: false},
+  ];
+
+  console.log('---------------------');
+  console.log('Loose Comparison Scenarios:');
+  console.log('---------------------');
+  LooseScenarios.forEach((i, idx) => {
+    const {a, b, exp} = i;
+    test(looseCompare, idx + 1, a, b, exp);
+  });
+
+  const EqualScenarios = [
+    {a: null, b: null},
+    {a: undefined, b: undefined},
+    {a: true, b: true},
+    {a: false, b: false},
+    {a: '', b: ''},
+    {a: 'a', b: 'a'},
+    {a: 1, b: 1},
+    {a: {a: 1, b: 2, c: 3}, b: {a: 1, b: 2, c: 3}},
+    {a: [], b: []},
+    {a: [1], b: [1]},
+    {a: [1, 2], b: [1, 2]},
+  ];
+
+  const UnEqualScenarios = [
+    {a: undefined, b: null},
+    {a: false, b: true},
+    {a: 2, b: undefined},
+    {a: undefined, b: 3},
+    {a: 1, b: null},
+    {a: 1, b: '1'},
+    {a: 1, b: 3},
+    {a: 'a', b: 'b'},
+    {a: {a: 1, b: 2}, b: {a: 1, b: 2, c: 2}},
+    {a: {a: 1, b: 2, c: 3}, b: {a: 1, b: 2}},
+    {a: {a: 1, b: 2, c: 3}, b: {a: 1, b: 2, c: 0}},
+    {a: [], b: null},
+    {a: [], b: undefined},
+    {a: [1, 2], b: [1, '2']},
+    {a: {a: [1, 2]}, b: {a: '1', b: 1}},
+    {a: {a: [1, 2], b: {a: [1, '2'], b: 1}}},
+    {a: {a: [1, 2]}, b: {a: [1, 2], b: 1}},
+  ];
+
+  console.log('---------------------');
+  console.log('Strict Equal Scenarios:');
+  console.log('---------------------');
+  EqualScenarios.forEach((i, idx) => {
+    const {a, b} = i;
+    test(strictCompare, idx + 1, a, b, true);
+  });
+
+  console.log('---------------------');
+  console.log('UnEqual Scenarios:');
+  console.log('---------------------');
+  UnEqualScenarios.forEach((i, idx) => {
+    const {a, b} = i;
+    test(strictCompare, idx + 1, a, b, false);
+  });
+
+  var oProfile = {
+    profile: {
+      fname: 'aaa',
+      lname: 'bbb',
+      email: 'aaa@bbb.com',
+      phones: [{type: 'home', phone: '123456789'}, {type: 'work', phone: '9997775555'}],
+    },
+    address: {
+      home: {street_number: '1234', street_name: 'Main St', city: 'Los Angeles', state: 'TX', zip: '77007'},
+      work: {street_number: '854', street_name: 'New York Ave', city: 'New York', state: 'NY', zip: '11111'}
+    },
+    payment: [
+      {1: {name: 'David Jonh', card: '1111-2222-3333-4444', expire: {month: 12, year: 2017, day: 1}, isDefault: true}},
+      {
+        2: {
+          name: 'Samantha Jonh',
+          card: '1111-2222-3333-5555',
+          expire: {month: 5, year: 2016, day: 15},
+          isDefault: false
+        }
+      },
+    ]
+  };
+
+  var uProfile = {
+    profile: {
+      fname: 'aaa',
+      lname: 'bbb',
+      email: 'aaa@bbb.com',
+      phones: [{type: 'home', phone: '123456789'}, {type: 'work', phone: '9997775555'}],
+    },
+    address: {
+      home: {street_number: '1234', street_name: 'Main St', city: 'Los Angeles', state: 'TX', zip: '77007'},
+      work: {street_number: '854', street_name: 'New York Ave', city: 'New York', state: 'NY', zip: '11111'}
+    },
+    payment: [
+      {1: {name: 'David Jonh', card: '1111-2222-3333-4444', expire: {month: 12, year: 2017, day: 1}, isDefault: true}},
+      {
+        2: {
+          name: 'Samantha Jonh',
+          card: '1111-2222-3333-5555',
+          expire: {month: 5, year: 2016, day: 15},
+          isDefault: false
+        }
+      },
+    ]
+  };
+
+  console.log('*-----------------*');
+  console.log('Loose Equal Profile Object Scenarios:');
+  console.log('---------------------');
+
+  test(looseCompare, 1, oProfile, uProfile, true);
+
+   uProfile.profile.fname = 'ccc';
+   test(looseCompare, 2, oProfile, uProfile, false);
+
+    delete uProfile.profile.fname;
+   test(looseCompare, 3, oProfile, uProfile, false);
+
+   //uProfile.profile.fname = oProfile.profile.fname;
+  uProfile.profile.fname = 'aaa';
+   test(looseCompare, 4, oProfile, uProfile, true);
+
+   uProfile.payment.push({});
+   test(looseCompare, 5, oProfile, uProfile, false);
+
+  uProfile.payment.pop();
+  test(looseCompare, 6, oProfile, uProfile, true);
+
+   oProfile.profile.fname = undefined;
+   uProfile.profile.fname = '';
+   test(looseCompare, '7 (loose)', oProfile, uProfile, true);
+  test(strictCompare, '7 (strict)', oProfile, uProfile, false);
+
+
+  const [sa,sb,sc,sd] = [Symbol(),Symbol(),Symbol(),Symbol()];
+  const complextObjectScenarios = [
+    {a: {[sa]: sb}, b: {[sa]: sb}, exp: true},
+    {a: {[sa]: sb, [sc]: sd}, b: {[sa]: sb, [sc]: sc}, exp: false},
+    /*a: {[sa]: sb}, b: {[sb]: sb}, exp: false},
+    {a: {[sa]: sb, [sc]: [sd]}, b: {[sa]: sb, [sc]: [sc]}, exp: true},*/
+  ];
+
+  console.log('*-----------------*');
+  console.log('Strict Equal Complex Object Scenarios:');
+  console.log('---------------------');
+  complextObjectScenarios.forEach((i, idx) => {
+    const {a, b, exp} = i;
+    test(strictCompare, idx + 1, a, b, exp);
+  });
+
+
+</script>
+
+
+</html>
