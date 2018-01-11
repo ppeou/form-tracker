@@ -247,6 +247,7 @@
       fname: 'aaa',
       lname: 'bbb',
       email: 'aaa@bbb.com',
+      dob: new Date(1990,0,15),
       phones: [{type: 'home', phone: '123456789'}, {type: 'work', phone: '9997775555'}],
     },
     address: {
@@ -271,6 +272,7 @@
       fname: 'aaa',
       lname: 'bbb',
       email: 'aaa@bbb.com',
+      dob: new Date(1990,0,15),
       phones: [{type: 'home', phone: '123456789'}, {type: 'work', phone: '9997775555'}],
     },
     address: {
@@ -315,6 +317,23 @@
   uProfile.profile.fname = '';
   test(looseCompare, '7 (loose)', oProfile, uProfile, true);
   test(strictCompare, '7 (strict)', oProfile, uProfile, false);
+
+  oProfile.profile.fname = 'aaa';
+  uProfile.profile.fname = 'aaa';
+  test(strictCompare, '8', oProfile, uProfile, true);
+
+  uProfile.profile.dob.setDate(1);
+  test(strictCompare, 9, oProfile, uProfile, false);
+
+  uProfile.profile.dob.setDate(15);
+  test(strictCompare, 10, oProfile, uProfile, true);
+
+  uProfile.profile.dob = null;
+  test(looseCompare, '11 (Loose)', oProfile, uProfile, false);
+  test(strictCompare, '11 (Strict)', oProfile, uProfile, false);
+
+  uProfile.profile.dob = new Date(1990,0,15);
+  test(strictCompare, 12, oProfile, uProfile, true);
 
 
   const [sa, sb, sc, sd] = [Symbol(), Symbol(), Symbol(), Symbol()];
