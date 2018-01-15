@@ -117,9 +117,9 @@
 
     _w.SmartCompare = SmartCompare;
   })(window);
-  ((_w) => {})(window);
-  var strictCompare = (new SmartCompare()).compare;
-  var looseCompare = (new SmartCompare(true)).compare;
+
+  const strictCompare = (new SmartCompare()).compare;
+  const looseCompare = (new SmartCompare(true)).compare;
 
 
   const test = (compareFn, scenario, a, b, expected) => {
@@ -128,10 +128,6 @@
     console.log(isExpected, `Scenario: ${scenario}`, actual, a === '' ? '""' : a, b === '' ? '""' : b);
     return isExpected;
   }
-
-
-  /*console.log(looseCompare(undefined, null));
-   console.log(strictCompare(undefined, null));*/
 
   const StrictScenarios = [
     {a: '', b: null, exp: false},

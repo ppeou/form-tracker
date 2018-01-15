@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+</head>
+<body>
+
+<script>
+  const getOriginal = () => {
+    return [
+      {parentOrder: {id: 1, grpId: 0, sampleId: 0}, childOrderList: [], groupingChangeFlag: false,},
+      {parentOrder: {id: 2, grpId: 0, sampleId: 0}, childOrderList: [], groupingChangeFlag: false,},
+      {
+        parentOrder: {id: 10, grpId: 'g10', sampleId: 0, marker: '-------'},
+        childOrderList: [
+          {id: 11, grpId: 'g10', sampleId: 0},
+          {id: 12, grpId: 'g10', sampleId: 0},
+        ],
+        groupingChangeFlag: false,
+      }
+    ];
+  };
+  
+  class GroupManager {
+    constructor() {
+      this.maps = {
+        groups: {},
+        items: {},
+      };
+    }
+
+    add({grpId, iId, level}) {
+      const {groups, items} = this.maps;
+      if (!groups[grpId]) {groups[grpId] = {};}
+      groups[grpId][iId] = level;
+    }
+
+    autoRemoveGroup(grpId) {
+      const count = Object.keys(this.maps.groups[grpId] || {}).length;
+      if (count === 0) {
+        delete this.maps.groups[grpId];
+      }
+    }
+
+    remove({grpId, iId}) {
+      const {groups, items} = this.maps;
+      if (groups[grpId] && groups[grpId][iId]) {
+        delete groups[grpId][iId];
+        this.autoRemoveGroup(grpId);
+      }
+    }
+
+    move({oldgrpId, iId, newgrpId, level}) {
+      const {groups, items} = this.maps;
+      this.remove({grpId: oldgrpId, iId});
+      this.autoRemoveGroup(oldgrpId);
+      this.add({grpId: newgrpId, iId, level});
+    }
+
+    print() {
+      console.log(JSON.parse(JSON.stringify(this.maps.groups)));
+    }
+
+  }
+
+
+  class NestedArray {
+    constructor(items, opts) {
+      this.opts = {
+        fields: {
+          id: 'id',
+          parent: 'parent',
+          children: 'children',
+          group: 'grpId',
+          groupChanged: 'gc',
+          uby: 'uby',
+          deleted: 'deleted',
+          status: 'status',
+        }, flags: {
+          added: 'n',
+          edited: 'e',
+          deleted: 'd',
+          na: ''
+        }
+      };
+      opts.fields && Object.assign(this.opts.fields, opts.fields);
+      opts.flags && Object.assign(this.opts.flags, opts.flags);
+      this.groups = {};
+      this.tracker = {};
+      this.queueOfLazyScan = [];
+      this.lastChangedItems = [];
+      this.groupManager = new GroupManager();
+      if (items) {
+        this.load(items);
+      }
+    }
+
+    load(wrapper) {
+      const {id, group, children, parent} = this.opts.fields;
+      this.queueOfLazyScan = [];
+      let grpId, pId, cId;
+      this.items = wrapper.map(w => {
+        const p = w[parent];
+        grpId = p[group];
+        pId = p[id];
+        this.groupManager.add({grpId, iId: pId, level: 1});
+        this.tracker[pId] = p;
+        p[children] = w[children];
+        this.queueOfLazyScan.push({pId: pId, items: w[children]});
+        return p;
+      });
+    }
+
+    lazyScanChildrenRecords() {
+      const {id, group} = this.opts.fields;
+      let grpId, cId;
+      this.queueOfLazyScan.forEach(i => {
+        let {pId, items} = i;
+        if (items.length > 0) {
+          grpId = items[0][group];
+          items.forEach((c, idx) => {
+            cId = c[id];
+            this.groups[cId] = pId;
+            this.tracker[cId] = c;
+            this.groupManager.add({grpId, iId: cId, level: 2});
+          });
+        }
+      });
+    }
+
+    print() {
+      console.log('');
+      console.log('------------------');
+      const {id, children, group, status} = this.opts.fields;
+      this.items.forEach(p => {
+        console.log(p[id], p[group], p[status], p.marker);
+        if (p[children]) {
+          p[children].forEach(c => {
+            console.log('-->', c[id], c[group], c[status], c.marker);
+          });
+        }
+      });
+      /*console.log(this.tracker);
+       console.log(this.groupManager.print());*/
+    }
+
+    isUpdatedByOthers(oItem, nItem) {
+      const {uby} = this.opts.fields;
+      return oItem[uby] !== nItem[uby];
+    }
+
+    isChild(item) {
+      const {group, children} = this.opts.fields;
+      return item[group] && !item[children];
+    }
+
+    isUnGroup(item) {
+      const {group} = this.opts.fields;
+      return !item[group];
+    }
+
+    isGroup(item) {
+      const {group} = this.opts.fields;
+      return !!item[group];
+    }
+
+    getParentIdOfChildId(cId) {
+      return this.groups[cId];
+    }
+
+    getParentByChildId(cId) {
+      const pId = this.getParentIdOfChildId(cId);
+      return this.tracker[pId];
+    }
+
+    getParentIdOfGroupId(grpId) {
+      const {id, group} = this.opts.fields;
+      const item = this.items.find(i => i[group] === grpId);
+      return item ? item[id] : undefined;
+    }
+
+    isHead(item) {
+      const {group, children} = this.opts.fields;
+      return item[group] && item[children];
+    }
+
+    hasBecomeUngroup(oItem, nItem) {
+      const {group} = this.opts.fields;
+      return oItem[group] && !nItem[group];
+    }
+
+    hasBecomeGroup(oItem, nItem) {
+      const {group} = this.opts.fields;
+      return !oItem[group] && nItem[group];
+    }
+
+    hasChangedGroup(oItem, nItem) {
+      const {group} = this.opts.fields;
+      return oItem[group] && nItem[group] && oItem[group] !== nItem[group];
+    }
+
+    findIndex(parent, iId) {
+      const {id} = this.opts.fields;
+      return parent.findIndex(i => i[id] === iId);
+    }
+
+    upsertItem(item) {
+      const {
+        fields: {id, deleted, children, status},
+        flags: {
+          added: addedFlag,
+          edited: editedFlag,
+          deleted: deletedFlag,
+          na: naFlag
+        }
+      } = this.opts;
+      let flag, idx;
+      let iId = item[id];
+      let parent, oParent, nParent;
+      const oItem = this.tracker[iId];
+      if (item[deleted]) {
+        if (oItem) {
+          if (this.isChild(oItem)) {
+            parent = this.getParentByChildId(iId)[children];
+          } else {
+            parent = this.items;
+          }
+        }
+
+        idx = this.findIndex(parent, iId);
+        if (idx > -1) {
+          parent.splice(idx, 1);
+        }
+        delete this.tracker[iId];
+      }
+      else {
+        if (oItem) {
+          flag = this.isUpdatedByOthers(oItem, item) ? editedFlag : naFlag;
+          item[status] = flag;
+          if (oItem[children]) {
+            item[children] = oItem[children];
+          }
+          if (this.hasBecomeUngroup(oItem, item)) {
+            oParent = this.getParentByChildId(iId)[children];
+            idx = this.findIndex(oParent, iId);
+            if (idx > -1) {
+              oParent.splice(idx, 1);
+            }
+            delete this.groups[iId];
+            this.items.push(oItem);
+          }
+          else {
+            if (this.hasBecomeGroup(oItem, item)) {
+              //apply logic to move from one group to another
+              //if (this.isGroup(item)) {
+              if (this.isChild(item)) {
+                oParent = this.items;
+                idx = this.findIndex(oParent, iId);
+                if (idx > -1) {
+                  oParent.splice(idx, 1);
+                }
+                nParent = this.getParentByChildId(iId)[children];
+                nParent.push(oItem);
+              }
+            } else {
+              if (this.hasChangedGroup(oItem, item)) {
+                const oId = `o${iId}`;
+                oParent = this.getParentByChildId(oId)[children];
+                idx = this.findIndex(oParent, iId);
+                if (idx > -1) {
+                  oParent.splice(idx, 1);
+                }
+                delete this.groups[oId];
+                nParent = this.getParentByChildId(iId)[children];
+                nParent.push(oItem);
+              }
+            }
+          }
+          Object.assign(oItem, item);
+          this.lastChangedItems.push(oItem);
+          /*this.tracker[iId] = item;
+           this.lastChangedItems.push(this.tracker[iId]);*/
+        } else {
+          item[status] = addedFlag;
+          this.tracker[iId] = item;
+          if (this.isChild(item)) {
+            nParent = this.getParentByChildId(iId)[children];
+            nParent.push(this.tracker[iId]);
+          } else {
+            this.items.push(this.tracker[iId]);
+          }
+          this.lastChangedItems.push(this.tracker[iId]);
+        }
+      }
+    }
+
+    predictAction(iow) {
+      const {id, group, parent, children} = this.opts.fields;
+      let grpId, pId, cId;
+      if (iow[parent]) {
+        pId = iow[parent][id];
+        if (iow[parent][group]) {
+          iow[parent][children] = [];
+        }
+        this.upsertItem(iow[parent]);
+      }
+      if (iow[children]) {
+        iow[children].forEach(c => {
+          cId = c[id];
+          grpId = c[group];
+          if (!pId) {
+            pId = this.getParentIdOfGroupId(grpId);
+          }
+          if (this.groups[cId]) {
+            this.groups[`o${cId}`] = this.groups[cId];
+          }
+          this.groups[cId] = pId;
+          this.upsertItem(c);
+        });
+      }
+    }
+
+    update(iows) {
+      this.resetLastChangedItems();
+      iows.forEach(iow => {
+        this.predictAction(iow);
+      });
+    }
+
+    resetLastChangedItems() {
+      const {id, status} = this.opts.fields;
+      const naFlag = this.opts.flags.na;
+      this.lastChangedItems.forEach(i => {
+        this.tracker[i[id]][status] = naFlag;
+      })
+      this.lastChangedItems = [];
+    }
+  }
+
+  //const iDtracker = new IdTracker();
+  const saa = new NestedArray(getOriginal(), {fields: {
+    group: 'grpId',
+    parent: 'parentOrder',
+    children: 'childOrderList',
+    groupChanged: 'groupingChangeFlag'
+  }});
+  window.saa = saa;
+  saa.lazyScanChildrenRecords();
+  saa.print();
+
+  saa.update([
+    {
+      parentOrder: {id: 101, grpId: 0, sampleId: 0},
+      childOrderList: [],
+      groupingChangeFlag: false,
+    },
+  ]);
+  saa.print();
+
+  saa.update([
+    {
+      parentOrder: {id: 1, grpId: 0, sampleId: 0, uby: 'me'},
+      childOrderList: [],
+      groupingChangeFlag: false,
+    },
+    {
+      parentOrder: {id: 10, grpId: 'g10', sampleId: 0, uby: 'me', marker: '+++++++++++'},
+      childOrderList: [],
+      groupingChangeFlag: false,
+    },
+  ]);
+  saa.print();
+
+  saa.update([
+    {
+      parentOrder: {id: 2, grpId: 0, sampleId: 0, deleted: true},
+      childOrderList: [],
+      groupingChangeFlag: false,
+    },
+  ]);
+  saa.print();
+
+  saa.update([
+    {
+      parentOrder: {id: 11, grpId: 0, sampleId: 0, uby: 'me'},
+      childOrderList: [],
+      groupingChangeFlag: false,
+    },
+  ]);
+  saa.print();
+
+  saa.update([
+    {
+      parentOrder: {id: 10, grpId: 'g10', sampleId: 0},
+      childOrderList: [{id: 11, grpId: 'g10', sampleId: 0, uby: 'you'}],
+      groupingChangeFlag: false,
+    },
+  ]);
+  saa.print();
+
+  saa.update([
+    {
+      parentOrder: {id: 2, grpId: 0, sampleId: 0},
+      childOrderList: [],
+      groupingChangeFlag: false,
+    },
+  ]);
+
+  saa.update([
+    {
+      parentOrder: {id: 2, grpId: 'g2', sampleId: 0, marker: 'aaa'},
+      childOrderList: [{id: 11, grpId: 'g2', sampleId: 0, uby: 'me', marker: 'bbb'}],
+      groupingChangeFlag: false,
+    },
+  ]);
+  saa.print();
+
+  saa.update([
+    {
+      parentOrder: {id: 10, grpId: 'g10', sampleId: 0},
+      childOrderList: [
+        {id: 14, grpId: 'g10', sampleId: 0},
+        {id: 15, grpId: 'g10', sampleId: 0},
+      ],
+      groupingChangeFlag: false,
+    },
+  ]);
+  saa.print();
+
+  saa.update([
+    {
+      childOrderList: [
+        {id: 14, grpId: 'g2', sampleId: 0},
+      ],
+      groupingChangeFlag: false,
+    },
+  ]);
+  saa.print();
+
+  /*saa.update([
+   {
+   children: [
+   {id: 14, grpId: 'g2', sampleId: 0, deleted: true},
+   ],
+   groupingChangeFlag: false,
+   },
+   ]);
+   saa.print();*/
+
+
+</script>
+
+</body>
+</html>
